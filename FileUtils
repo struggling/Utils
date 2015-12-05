@@ -1,0 +1,132 @@
+package com.chuxin.ypk.utils;
+
+import android.app.Activity;
+import android.content.Context;
+import android.os.Environment;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+
+public class FileUtils {
+    public static void saveFileFromUrl(final Context context, final String path, final String name, final String url, final CallBack callBack) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if(!isExternalStorageWritable()){
+                        ((Activity) context).runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (callBack != null)
+                                    callBack.onError("没有插入SD卡");
+                            }
+                        });
+                        return;
+                    }
+                    ((Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (callBack != null)
+                                callBack.onDownLoading();
+                        }
+                    });
+                    URL mUrl = new URL(url);
+                    InputStream is = mUrl.openStream();
+                    File file = new File(path);
+                    if (!file.exists()) {
+                        file.mkdirs();
+                    }
+                    if(fileIsExists(path + "/" + name)){
+                        ((Activity) context).runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (callBack != null)
+                                    callBack.hasDownLoaded();
+                            }
+                        });
+                        return;
+                    }
+                    OutputStream os = new FileOutputStream(path + "/" + name);
+                    byte[] buffer = new byte[1024];
+                    int len = 0;
+                    while ((len = is.read(buffer)) != -1) {
+                        os.write(buffer, 0, len);
+                    }
+                    //关闭I/O流
+                    os.close();
+                    is.close();
+                    ((Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (callBack != null)
+                                callBack.onSuccess();
+                        }
+                    });
+                } catch (final MalformedURLException e) {
+                    e.printStackTrace();
+
+                    ((Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (callBack != null)
+                                callBack.onError(e.toString());
+                        }
+                    });
+
+
+                } catch (final IOException e) {
+                    e.printStackTrace();
+                    ((Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (callBack != null)
+                                callBack.onError(e.toString());
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    public interface CallBack {
+        void onDownLoading();
+        void onSuccess();
+        void onError(String s);
+        void hasDownLoaded();
+    }
+
+    /**
+     * 判断SD卡是否存在
+     * @return
+     */
+    private static boolean isExternalStorageWritable(){
+        String state = Environment.getExternalStorageState();
+        if(Environment.MEDIA_MOUNTED.equals(state))
+            return true;
+        return false;
+    }
+
+    /**
+     * 判断图片是否已经存在了
+     * @param filePath
+     * @return
+     */
+    private static boolean fileIsExists(String filePath){
+        try {
+            File f = new File(filePath);
+            if (!f.exists()) {
+                return false;
+            }
+        }
+        catch (Exception e){
+            return false;
+        }
+        return true;
+    }
+}
